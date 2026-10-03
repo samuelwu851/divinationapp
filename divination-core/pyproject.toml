@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "divination-core"
+version = "0.1.0"
+description = "Pure-Python core for divination arts (I Ching first, more to come)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/divination"]
+
+# pythonpath = ["src"] 让 pytest 无需安装即可直接 import，适合快速起步。
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
