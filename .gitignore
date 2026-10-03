@@ -1,0 +1,30 @@
+# ───────── macOS ─────────
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ───────── Xcode ─────────
+# 编译产物 / 本地派生数据
+build/
+DerivedData/
+*.xcworkspace/xcuserdata/
+# 个人本地配置（每个人机器上不同，不该进仓库）
+xcuserdata/
+*.xcuserstate
+# 依赖管理
+.swiftpm/
+Pods/
+Carthage/Build/
+
+# ───────── Python ─────────
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+
+# 虚拟环境
+.venv/
+venv/
