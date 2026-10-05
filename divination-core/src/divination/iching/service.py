@@ -14,6 +14,7 @@ UI 和平台只认识这一层，不直接碰 core / repository / model。
 
 from divination.iching import core, repository
 from divination.iching.model import Hexagram
+import json
 
 def checkandpack(value: int) -> dict:
     """
@@ -59,3 +60,17 @@ def flip(value: int, line: int) -> dict:
     new_hexagram = core.flip(Hexagram(value), line)
     return checkandpack(new_hexagram.value)
 
+
+"""
+    以下的两个函数是divination-core 的对外接口
+    接收int输出所有关于这个卦的信息（以json格式）
+    包括本卦、互卦、错卦、综卦的爻、爻辞、卦辞
+"""
+def lookup_json(value: int) -> str:
+    """供 Swift 调用：输入卦的数字，返回 JSON 字符串。"""
+    return json.dumps(checkandpack(value), ensure_ascii=False)
+
+
+def flip_json(value: int, line: int) -> str:
+    """供 Swift 调用：翻某一爻，返回新卦的 JSON 字符串。"""
+    return json.dumps(flip(value, line), ensure_ascii=False)
