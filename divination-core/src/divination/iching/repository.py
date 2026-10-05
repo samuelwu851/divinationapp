@@ -44,3 +44,19 @@ def value_of(hexagram: Hexagram) -> int:
 def order_of(hexagram: Hexagram) -> int:
     return info_of(hexagram)["order"]
 
+def _load_text() -> dict[int, dict]:
+    path = resources.files("divination.iching") / "data" / "hexagram_text.json"
+    records = json.loads(path.read_text(encoding="utf-8"))
+    result = {}
+    for record in records:
+        value = record["value"]
+        result[value] = {
+            "still": record["still"],
+            "lines": record["lines"]
+        }
+    return result
+
+_TEXT_INDEX = _load_text()
+
+def get_hexagram_text(hexagram: Hexagram):
+    return _TEXT_INDEX[hexagram.value]

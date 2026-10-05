@@ -1,0 +1,18 @@
+{
+  // 让 VS Code / Pylance 用项目自己的虚拟环境
+  //"python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  // 告诉 Pylance：源码根在 src/，这样 from divination.iching... 能被解析、能补全
+  //"python.analysis.extraPaths": ["src"],
+  // 补全时顺带建议“自动 import”
+  //"python.analysis.autoImportCompletions": true,
+  // 关掉“行内幽灵文本”这类 AI 式整行建议；不影响下拉的 IDE 补全
+  //"editor.inlineSuggest.enabled": false,
+  // 边打字边自动弹候选（打 mod 就提示 model），而不是只在打 "." 后才弹
+  "editor.quickSuggestions": {
+    "other": "on",
+    "comments": "off",
+    "strings": "off"
+  },
+  // 立刻弹，不等待
+  "editor.quickSuggestionsDelay": 0
+}
