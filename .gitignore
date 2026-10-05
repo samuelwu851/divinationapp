@@ -28,3 +28,7 @@ dist/
 # 虚拟环境
 .venv/
 venv/
+
+# ───────── 嵌入的 Python 运行时（体积大的二进制，不进仓库）─────────
+# 从 beeware/Python-Apple-support releases 下载，见 README
+Frameworks/

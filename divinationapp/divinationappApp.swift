@@ -12,7 +12,7 @@ struct divinationappApp: App {
 
     init() {
         Self.bootstrapPython()
-        Self.testLookup()          // 里程碑 1 自检
+        Self.testDispatch()        // 里程碑 1 自检（走通用分发器）
     }
 
     var body: some Scene {
@@ -40,13 +40,14 @@ struct divinationappApp: App {
         print(rc == 0 ? "✅ py_bootstrap 成功" : "❌ py_bootstrap 失败 rc=\(rc)")
     }
 
-    /// 里程碑 1 自检：调一次真正的内核接口，把卦象 JSON 打印出来。
-    private static func testLookup() {
-        guard let c = py_lookup_json(63) else {
-            print("❌ lookup_json 返回 NULL（看上面有没有 Python 报错）"); return
+    /// 里程碑 1 自检：通过通用分发器发一条 lookup 命令，把卦象 JSON 打印出来。
+    private static func testDispatch() {
+        let request = #"{"cmd":"lookup","value":63}"#   // 一条请求命令
+        guard let c = py_dispatch(request) else {
+            print("❌ dispatch 返回 NULL（看上面有没有 Python 报错）"); return
         }
         let json = String(cString: c)   // C 字符串 → Swift String（会复制）
         py_free_string(c)               // 复制完，释放 C 那份，避免泄漏
-        print("✅ lookup_json(63) =\n\(json)")
+        print("✅ dispatch(lookup,63) =\n\(json)")
     }
 }
