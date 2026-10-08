@@ -2,6 +2,7 @@ from divination.iching.model import Hexagram
 from divination.iching import repository
 from divination.iching import core
 
+
 def test_name_of_returns_full_name():
     """给一个卦，查出的是全名。"""
     # 准备 + 执行 + 断言
@@ -20,7 +21,7 @@ def test_order_is_king_wen_number():
 def test_info_of_has_three_fields():
     """info_of 返回 value / order / full_name 三个字段。"""
     info = repository.info_of(Hexagram(0b111111))
-    assert info == {"value": 63, "order": 1, "full_name": "乾為天"}
+    assert info == {"value": 63, "order": 1, "full_name": "乾為天","name":"乾"}
 
 
 def test_get_hexagram_text_qian():
@@ -43,3 +44,16 @@ def test_get_hexagram_text_bo():
     t = repository.get_hexagram_text(Hexagram(1))
     assert t["still"] == "不利有攸往。"
     assert t["lines"][5] == "碩果不食，君子得輿，小人剝廬。"
+
+
+def test_get_yilin_text_qian_qian():
+    """乾之乾。"""
+    t = repository.get_yilin_text(Hexagram(63), Hexagram(63))
+    assert t == "道陟石阪，胡言連蹇。譯瘖且聾，莫使道通。請謁不行，求事無功。"
+
+
+def test_get_yilin_text_qian_kun():
+    """乾之坤。"""
+    t = repository.get_yilin_text(Hexagram(63), Hexagram(0))
+    assert t == "招殃來螫，害我邦國；病在手足，不得安息。"
+

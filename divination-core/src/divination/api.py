@@ -21,6 +21,8 @@ def handle(request_json: str) -> str:
             return iching_service.lookup_json(req["value"])
         elif cmd == "flip":
             return iching_service.flip_json(req["value"], req["line"])
+        elif cmd == "yilin":
+            return iching_service.yilin_json(req["org_value"], req["chg_value"])
         else:
             return _error(f"unknown cmd: {cmd!r}")
     except Exception as e:

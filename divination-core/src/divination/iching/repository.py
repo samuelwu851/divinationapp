@@ -27,6 +27,7 @@ def _load() -> dict[int, dict]:
             "value": record["value"],
             "order": record["order"],
             "full_name": record["full_name"],
+            "name":record["name"]
         }
     return result
 
@@ -60,3 +61,18 @@ _TEXT_INDEX = _load_text()
 
 def get_hexagram_text(hexagram: Hexagram):
     return _TEXT_INDEX[hexagram.value]
+
+
+def _load_yilin_text() -> dict[tuple[int, int], str]:
+    path = resources.files("divination.iching") / "data" / "yilin_hexagram_text.json"
+    records = json.loads(path.read_text(encoding="utf-8"))
+    result = {}
+    for record in records:
+        key = (record["org_hex"], record["chg_hex"])
+        result[key] = record["text"]
+    return result
+
+_YILIN_TEXT_INDEX = _load_yilin_text()
+
+def get_yilin_text(original: Hexagram, changed: Hexagram) -> str:
+    return _YILIN_TEXT_INDEX[(original.value, changed.value)]

@@ -60,17 +60,33 @@ def flip(value: int, line: int) -> dict:
     new_hexagram = core.flip(Hexagram(value), line)
     return checkandpack(new_hexagram.value)
 
+def yilin(org_value: int, chg_value: int) -> dict:
+    """
+        通过本卦和变卦的value得到易林的文本
+    """
+    original = Hexagram(org_value)
+    changed = Hexagram(chg_value)
+    return {
+        "org_value": org_value,
+        "chg_value": chg_value,
+        "text": repository.get_yilin_text(original, changed)
+    }
+
+
 
 """
-    以下的两个函数是divination-core 的对外接口
+    以下的函数是divination-core 的对外接口
     接收int输出所有关于这个卦的信息（以json格式）
     包括本卦、互卦、错卦、综卦的爻、爻辞、卦辞
 """
 def lookup_json(value: int) -> str:
-    """供 Swift 调用：输入卦的数字，返回 JSON 字符串。"""
+    """供swift调用：输入卦的数字，返回json字符串。"""
     return json.dumps(checkandpack(value), ensure_ascii=False)
 
 
 def flip_json(value: int, line: int) -> str:
-    """供 Swift 调用：翻某一爻，返回新卦的 JSON 字符串。"""
+    """供swift调用：翻某一爻，返回新卦的json字符串。"""
     return json.dumps(flip(value, line), ensure_ascii=False)
+
+def yilin_json(original_value: int, changed_value: int) -> str:
+    return json.dumps(yilin(original_value, changed_value), ensure_ascii=False)

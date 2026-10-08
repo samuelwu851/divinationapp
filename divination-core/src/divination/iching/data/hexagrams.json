@@ -23,7 +23,7 @@
   {"value": 41, "order": 22, "name": "賁",   "full_name": "山火賁"},
   {"value": 1,  "order": 23, "name": "剝",   "full_name": "山地剝"},
   {"value": 32, "order": 24, "name": "復",   "full_name": "地雷復"},
-  {"value": 39, "order": 25, "name": "無妄", "full_name": "天雷無妄"},
+  {"value": 39, "order": 25, "name": "无妄", "full_name": "天雷无妄"},
   {"value": 57, "order": 26, "name": "大畜", "full_name": "山天大畜"},
   {"value": 33, "order": 27, "name": "頤",   "full_name": "山雷頤"},
   {"value": 30, "order": 28, "name": "大過", "full_name": "澤風大過"},
