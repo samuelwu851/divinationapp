@@ -1,77 +1,133 @@
 import SwiftUI
 
 struct ContentView: View {
-    // @State 持有我们的状态中心；因为 IChingStore 标了 @Observable，
-    // 它内部属性一变，界面自动重绘。
     @State private var store = IChingStore()
 
     var body: some View {
-        VStack(spacing: 18) {
-            if let hex = store.hexagram {
-                // 头部：卦名、卦辞、用九。彼此间距收紧到一半(12)。
-                VStack(spacing: 12) {
-                    Text(hex.name)                      // 卦名
-                        .font(.largeTitle).bold()
+        ScrollView {
+            VStack(spacing: 18) {
+                // 开关放右上角
+                HStack {
+                    Spacer()
+                    Toggle("变卦模式", isOn: $store.showChanged).fixedSize()
                 }
 
-//                    Text(hex.hexagramText.still)        // 卦辞（字号还原为 title3）
-//                        .font(.title2)
-                    // 用九 / 用六：仅乾坤有。空爻位 + 右侧文本，与爻辞左对齐；高度固定始终占位。
-//                    HStack(spacing: 16) {
-//                        Color.clear.frame(width: 180, height: 1)
-//                        Text(hex.hexagramText.lines.count == 7 ? hex.hexagramText.lines[6] : "")
-//                            .font(.title3)
-//                            .frame(maxWidth: 320, alignment: .leading)
-//                    }
-//                    .frame(height: 16).padding(.top, 6)
-//                }
-                
-                // 六爻：从上往下画 上爻→初爻。
-                // lines[0] 是初爻（最下），所以把下标倒序，让 index 0 排最后。
-                VStack(spacing: 4) {
-                    ForEach((0..<hex.lines.count).reversed(), id: \.self) { index in
-                        HStack(spacing: 16) {                 // 横向：左爻、右爻辞
-                            LineView(isYang: hex.lines[index] == 1)
-                                .onTapGesture {
-                                    store.flip(line: index + 1)   // 下标0 → 第1爻(初爻)
-                                }
-                            if index < hex.hexagramText.lines.count {
-                                Text(hex.hexagramText.lines[index])
-                                    .font(.title3)                       // 爻辞字体大一点
-                                    .frame(maxWidth: 320, alignment: .leading)
+                if let org = store.original {
+                    if store.showChanged, let chg = store.changed {
+                        // 本卦 | 变卦 并排（紧凑：只有卦名+六爻，点卦名看浮窗）
+                        HStack(alignment: .top, spacing: 48) {
+                            HexagramPanelView(hex: org, compact: true,
+                                              changingLines: store.changingLines,
+                                              showArrow: true,            // 本卦侧画 → 指向变卦
+                                              onFlip: { store.flipOriginal(line: $0) })
+                            HexagramPanelView(hex: chg, compact: true,
+                                              changingLines: store.changingLines,
+                                              showArrow: false,
+                                              onFlip: { store.flipChanged(line: $0) })
+                        }
+
+                        // 焦氏易林：两卦下方
+                        if let yilin = store.yilin {
+                            Divider()
+                            VStack(spacing: 6) {
+                                Text("焦氏易林").font(.headline)
+                                Text(yilin).font(.title3).frame(maxWidth: 600)
                             }
                         }
-                        .frame(height: 44)                               // 固定行高：爻间距不再随爻辞长短改变
+
+                        // 错 / 综 / 互：在易林下方（本卦、变卦各一组）
+                        HStack(alignment: .top, spacing: 48) {
+                            VStack(spacing: 6) {
+                                Text("本卦").font(.caption).foregroundStyle(.secondary)
+                                DerivedRow(hex: org)
+                            }
+                            VStack(spacing: 6) {
+                                Text("变卦").font(.caption).foregroundStyle(.secondary)
+                                DerivedRow(hex: chg)
+                            }
+                        }
+                        .padding(.top, 8)
+
+                    } else {
+                        // 速查模式：完整面板（内联爻辞/卦辞/错综互）
+                        HexagramPanelView(hex: org, onFlip: { store.flipOriginal(line: $0) })
                     }
+                } else if let msg = store.errorMessage {
+                    Text("出错了：\(msg)").foregroundStyle(.red)
+                } else {
+                    ProgressView()
                 }
-                HStack(spacing: 16) {
-                    Color.clear.frame(width: 180, height: 1)
-                    Text(hex.hexagramText.lines.count == 7 ? hex.hexagramText.lines[6] : "")
-                        .font(.title3)
-                        .frame(maxWidth: 320, alignment: .leading)
-                }.frame(height: 14).padding(.bottom, 6)
-                
-                Text("卦辞：\(hex.hexagramText.still)")        // 卦辞（字号还原为 title3）
-                    .font(.title2)
+            }
+            .padding(40)
+        }
+        .onAppear { store.load() }
+    }
+}
 
-                // 错 综 互：小图，卦名在上、卦图在中、类型在下，三卦并排
-                HStack(spacing: 36) {
-                    ForEach(hex.derived) { d in
-                        DerivedHexagramCell(derived: d)   // 每个小卦自带 popover
+/// 一个卦的面板。两种模式：
+/// - 完整版(compact=false)：卦名 + 六爻+爻辞 + 用九/用六 + 卦辞 + 错综互（速查用）。
+/// - 紧凑版(compact=true)：只有卦名 + 六爻；点卦名弹浮窗看卦辞/爻辞（变卦模式用）。
+/// onFlip 把被点的爻位(1-6)回调给外面。
+struct HexagramPanelView: View {
+    let hex: Hexagram
+    var compact: Bool = false
+    var changingLines: Set<Int> = []     // 动爻下标(0-5)
+    var showArrow: Bool = false          // 动爻右侧是否画 →（本卦为 true）
+    let onFlip: (Int) -> Void
+
+    @State private var showDetail = false   // 紧凑版：卦名点开的浮窗
+
+    var body: some View {
+        VStack(spacing: 12) {
+            // 卦名（紧凑版可点开浮窗看卦辞/爻辞）
+            Text(hex.name).font(.largeTitle).bold()
+                .contentShape(Rectangle())
+                .onTapGesture { if compact { showDetail = true } }
+                .popover(isPresented: $showDetail) { HexagramDetailView(hex: hex) }
+
+            // 六爻（点击 = 变爻）
+            VStack(spacing: 4) {
+                ForEach((0..<hex.lines.count).reversed(), id: \.self) { index in
+                    HStack(spacing: 12) {
+                        LineView(isYang: hex.lines[index] == 1)
+                            .onTapGesture { onFlip(index + 1) }
+
+                        // 动爻箭头（只有 →，且只在本卦侧）
+                        if showArrow {
+                            Text(changingLines.contains(index) ? "→" : "")
+                                .font(.title3).foregroundStyle(.orange).frame(width: 22)
+                        }
+
+                        // 完整版才内联爻辞
+                        if !compact, index < hex.hexagramText.lines.count {
+                            Text(hex.hexagramText.lines[index])
+                                .font(.title3).frame(maxWidth: 320, alignment: .leading)
+                        }
                     }
+                    .frame(height: 44)
                 }
-                .padding(.top, 12)
-                
+            }
 
-
-            } else if let msg = store.errorMessage {
-                Text("出错了：\(msg)").foregroundStyle(.red)
-            } else {
-                ProgressView()                      // 还没加载时转圈
+            // 完整版才显示：用九/用六、卦辞、错综互
+            if !compact {
+                Text(hex.hexagramText.lines.count == 7 ? hex.hexagramText.lines[6] : "")
+                    .font(.title3).frame(height: 14)
+                Text("卦辞：\(hex.hexagramText.still)").font(.title2)
+                DerivedRow(hex: hex).padding(.top, 12)
             }
         }
-        .padding(40)
-        .onAppear { store.load() }                  // 界面一出现就加载当前卦
+    }
+}
+
+/// 错 / 综 / 互 三个小卦一排（点各自弹 popover）。
+struct DerivedRow: View {
+    let hex: Hexagram
+    var body: some View {
+        HStack(spacing: 36) {
+            ForEach(hex.derived) { d in
+                DerivedHexagramCell(derived: d)
+            }
+        }
     }
 }
 
@@ -143,7 +199,6 @@ struct DerivedHexagramCell: View {
 }
 
 /// 衍生卦详情弹窗：卦名、卦辞、带爻题前缀的爻辞（初爻在最前）。
-/// 用 popover 呈现，点别处即关闭，无需按钮。
 struct DerivedDetailView: View {
     let derived: DerivedHexagram
 
@@ -158,8 +213,6 @@ struct DerivedDetailView: View {
 
             Divider()
 
-            // 爻辞：自下而上，初爻(下标0)在最前，带爻题前缀。
-            // 乾坤会多第 7 条(下标6)=用九/用六，文本已含前缀，直接显示。
             ForEach(0..<derived.text.lines.count, id: \.self) { i in
                 if i < 6 {
                     Text("\(yaoTitle(index: i, isYang: derived.lines[i] == 1))　\(derived.text.lines[i])")
@@ -171,14 +224,40 @@ struct DerivedDetailView: View {
         .padding(28)
         .frame(minWidth: 320)
     }
+}
 
-    /// 根据爻位(0=初…5=上)和阴阳，拼出爻题：初九 / 九二 / 上六 …
-    private func yaoTitle(index: Int, isYang: Bool) -> String {
-        let yinYang = isYang ? "九" : "六"
-        switch index {
-        case 0: return "初\(yinYang)"                       // 初九 / 初六
-        case 5: return "上\(yinYang)"                       // 上九 / 上六
-        default: return "\(yinYang)\(["二","三","四","五"][index - 1])" // 九二 / 六三…
+/// 本卦 / 变卦 的详情浮窗（变卦模式点卦名弹出）：卦名、卦辞、带爻题的爻辞。
+struct HexagramDetailView: View {
+    let hex: Hexagram
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(hex.name).font(.title).bold()
+                .frame(maxWidth: .infinity, alignment: .center)
+
+            Text("卦辞：\(hex.hexagramText.still)").font(.title3)
+
+            Divider()
+
+            ForEach(0..<hex.hexagramText.lines.count, id: \.self) { i in
+                if i < 6 {
+                    Text("\(yaoTitle(index: i, isYang: hex.lines[i] == 1))　\(hex.hexagramText.lines[i])")
+                } else {
+                    Text(hex.hexagramText.lines[i])
+                }
+            }
         }
+        .padding(28)
+        .frame(minWidth: 320)
+    }
+}
+
+/// 根据爻位(0=初…5=上)和阴阳，拼出爻题：初九 / 九二 / 上六 …
+func yaoTitle(index: Int, isYang: Bool) -> String {
+    let yinYang = isYang ? "九" : "六"
+    switch index {
+    case 0: return "初\(yinYang)"                       // 初九 / 初六
+    case 5: return "上\(yinYang)"                       // 上九 / 上六
+    default: return "\(yinYang)\(["二","三","四","五"][index - 1])" // 九二 / 六三…
     }
 }
