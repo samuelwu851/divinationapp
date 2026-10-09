@@ -26,14 +26,14 @@ struct divinationappApp: App {
         // 嵌入的框架位于 app bundle 的 Frameworks 目录下。
         // 注意：Versions/3.13 这段是 macOS 框架布局；之后推 iOS 时再按 iOS 布局调整。
         guard let frameworks = Bundle.main.privateFrameworksURL else {
-            print("❌ 找不到 Frameworks 目录"); return
+            print("找不到 Frameworks 目录"); return
         }
         let home = frameworks
             .appendingPathComponent("Python.framework/Versions/3.13").path
 
         // divination 包被打进了 app 资源区，它的父目录就是 resourceURL。
         guard let appPath = Bundle.main.resourceURL?.path else {
-            print("❌ 找不到资源目录"); return
+            print("找不到资源目录"); return
         }
 
         let rc = py_bootstrap(home, appPath)
@@ -44,7 +44,7 @@ struct divinationappApp: App {
     private static func testDispatch() {
         let request = #"{"cmd":"lookup","value":63}"#   // 一条请求命令
         guard let c = py_dispatch(request) else {
-            print("❌ dispatch 返回 NULL（看上面有没有 Python 报错）"); return
+            print("dispatch 返回 NULL（看上面有没有 Python 报错）"); return
         }
         let json = String(cString: c)   // C 字符串 → Swift String（会复制）
         py_free_string(c)               // 复制完，释放 C 那份，避免泄漏

@@ -26,11 +26,11 @@ struct ContentView: View {
                                               onFlip: { store.flipChanged(line: $0) })
                         }
 
-                        // 焦氏易林：两卦下方
+                        // 崔氏易林：两卦下方
                         if let yilin = store.yilin {
                             Divider()
                             VStack(spacing: 6) {
-                                Text("焦氏易林").font(.headline)
+                                Text("崔氏易林").font(.headline)
                                 Text(yilin).font(.title3).frame(maxWidth: 600)
                             }
                         }
