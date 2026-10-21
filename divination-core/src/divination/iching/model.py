@@ -41,5 +41,3 @@ class Trigram(IntEnum):
 class Hexagram:
     """一个卦 = 一个 6 位二进制数（0~63）。"""
     value: int
-
-
