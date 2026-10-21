@@ -9,6 +9,8 @@
 import json
 
 from divination.iching import service as iching_service
+from divination.ganzhi import service as ganzhi_service
+from divination.meihua import service as meihua_service
 
 
 def handle(request_json: str) -> str:
@@ -23,6 +25,18 @@ def handle(request_json: str) -> str:
             return iching_service.flip_json(req["value"], req["line"])
         elif cmd == "yilin":
             return iching_service.yilin_json(req["org_value"], req["chg_value"])
+        elif cmd == "bazi":
+            return ganzhi_service.bazi_json(
+                req["year"], req["month"], req["day"], req["hour"], req["minute"],
+                req.get("longitude"),              # 没选地区就是 None
+                req.get("tz_offset_hours", 8),     # 默认北京 +8
+            )
+        elif cmd == "meihua":
+            return meihua_service.qigua_json(
+                req["year"], req["month"], req["day"], req["hour"], req["minute"],
+                req.get("longitude"),
+                req.get("tz_offset_hours", 8),
+            )
         else:
             return _error(f"unknown cmd: {cmd!r}")
     except Exception as e:

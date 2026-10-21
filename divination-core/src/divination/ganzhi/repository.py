@@ -58,6 +58,8 @@ def lunar_info(moment: datetime) -> dict:
     nxt = lunar.getNextJieQi()
     return {
         "lunar_date": lunar.toString(),
+        "month": abs(lunar.getMonth()),   # 农历月数字；闰月库返回负数，取绝对值(闰二月→2)
+        "day": lunar.getDay(),            # 农历日数字
         "prev_jieqi": {"name": prev.getName(), "time": prev.getSolar().toYmdHms()},
         "next_jieqi": {"name": nxt.getName(), "time": nxt.getSolar().toYmdHms()},
     }
