@@ -88,9 +88,11 @@ struct DivinationClient {
     }
 
     func huangji(year: Int, month: Int, day: Int, hour: Int, minute: Int,
-                 isLunar: Bool, isLeap: Bool) -> HuangjiResult? {
+                 isLunar: Bool, isLeap: Bool,
+                 yearStart: String, dayRule: String) -> HuangjiResult? {
         decode(send(["cmd": "huangji_full", "year": year, "month": month, "day": day,
-                     "hour": hour, "minute": minute, "is_lunar": isLunar, "is_leap": isLeap]))
+                     "hour": hour, "minute": minute, "is_lunar": isLunar, "is_leap": isLeap,
+                     "year_start": yearStart, "day_rule": dayRule]))
     }
 
     /// 公历 → 农历（定农历默认值）。

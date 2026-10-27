@@ -25,6 +25,7 @@ struct RootView: View {
                 }
             }
             .frame(minWidth: 480, minHeight: 520)   // 仅设一个很小的下限，允许自由缩放
+            .background(PatternBackground())         // 全 app 背景纹理
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {

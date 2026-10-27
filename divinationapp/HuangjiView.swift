@@ -5,6 +5,8 @@ import SwiftUI
 /// 公历、农历各记各的，不互相同步。
 struct HuangjiView: View {
     @State private var isLunar = false
+    @State private var yearStart = "lichun"   // 岁首：daxue/dongzhi/lichun，默认立春
+    @State private var dayRule = "shigua"      // 日卦起法：yuegua/shigua，默认世卦起
 
     // 公历
     @State private var solarYear: Int
@@ -59,6 +61,21 @@ struct HuangjiView: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(maxWidth: 300)
+
+                // 岁首 + 日卦起法（下拉菜单）
+                HStack(spacing: 20) {
+                    Picker("岁首", selection: $yearStart) {
+                        Text("大雪").tag("daxue")
+                        Text("冬至").tag("dongzhi")
+                        Text("立春").tag("lichun")
+                    }
+                    Picker("日卦起法", selection: $dayRule) {
+                        Text("以月卦起").tag("yuegua")
+                        Text("以世卦起").tag("shigua")
+                    }
+                }
+                .pickerStyle(.menu)
+                .fixedSize()
 
                 // 滚轮（上下各露一格，visibleRows: 3）+ 计算按钮（在滚轮右边）
                 HStack(alignment: .center, spacing: 24) {
@@ -148,7 +165,8 @@ struct HuangjiView: View {
         }
 
         guard let h = client.huangji(year: y, month: m, day: d, hour: hour, minute: minute,
-                                     isLunar: lun, isLeap: leap) else {
+                                     isLunar: lun, isLeap: leap,
+                                     yearStart: yearStart, dayRule: dayRule) else {
             errorMessage = "计算失败：引擎无响应"; return
         }
         guard let hui = client.lookup(h.hui.value),
@@ -161,13 +179,27 @@ struct HuangjiView: View {
               let hour = client.lookup(h.hour.value) else {
             errorMessage = "计算失败：取卦数据出错"; return
         }
+        // 崔氏易林：各层卦变的林辞；标题用短名"某卦之某卦"（如 同人之离）
+        func yl(_ from: Int, _ to: Int) -> YilinLine {
+            YilinLine(title: "\(hexShortName(from))之\(hexShortName(to))",
+                      text: client.yilin(org: from, chg: to))
+        }
+        let yilin = HuangjiYilin(
+            shiToAnnual:    yl(h.shi.value,    h.annual.value),
+            decadeToAnnual: yl(h.decade.value, h.annual.value),
+            annualToMonth:  yl(h.annual.value, h.month.value),
+            monthToDay:     yl(h.month.value,  h.day.value),
+            dayToHour:      yl(h.day.value,    h.hour.value)
+        )
+
         result = HuangjiPaipan(
             ganzhi: h.ganzhi,
             huiIndex: h.hui.index, yunIndex: h.yun.index, shiIndex: h.shi.index,
             inputSolar: h.inputSolar,
             bazi: baziFrom(h.inputSolar),
             hui: hui, yun: yun, shi: shi, decade: decade, annual: annual,
-            month: month, day: day, hour: hour
+            month: month, day: day, hour: hour,
+            yilin: yilin
         )
         errorMessage = nil
     }
@@ -205,16 +237,31 @@ struct HuangjiView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
 
-        // 会/运/世/十年/年 竖排；每行横向滚动：主卦 + 它的 互/综/错
+        // 竖排各层卦；每行主卦+互综错横滑；对应易林放在该卦下方
         VStack(alignment: .leading, spacing: 18) {
-            GuaRow(label: "会卦", hexagram: r.hui)
-            GuaRow(label: "运卦", hexagram: r.yun)
-            GuaRow(label: "世卦", hexagram: r.shi)
-            GuaRow(label: "旬卦", hexagram: r.decade)
-            GuaRow(label: "年卦", hexagram: r.annual)
-            GuaRow(label: "月卦", hexagram: r.month)
-            GuaRow(label: "日卦", hexagram: r.day)
-            GuaRow(label: "时卦", hexagram: r.hour)
+            guaBlock("会卦", r.hui)
+            guaBlock("运卦", r.yun)
+            guaBlock("世卦", r.shi)
+            guaBlock("旬卦", r.decade)
+            guaBlock("年卦", r.annual, yilins: [r.yilin.shiToAnnual, r.yilin.decadeToAnnual])
+            guaBlock("月卦", r.month, yilins: [r.yilin.annualToMonth])
+            guaBlock("日卦", r.day,   yilins: [r.yilin.monthToDay])
+            guaBlock("时卦", r.hour,  yilins: [r.yilin.dayToHour])
+        }
+    }
+
+    /// 一个卦块：该卦行 +（可选）放在它下面的易林（卦变名 + 林辞）。
+    @ViewBuilder
+    private func guaBlock(_ label: String, _ hexagram: Hexagram?, yilins: [YilinLine] = []) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            GuaRow(label: label, hexagram: hexagram)
+            ForEach(yilins) { y in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(y.title).font(.subheadline).bold()
+                    Text(y.text ?? "—").font(.headline)       // 易林字号=卦名
+                }
+                .padding(.leading, 8)
+            }
         }
     }
 }
@@ -235,6 +282,34 @@ struct HuangjiPaipan {
     let month: Hexagram
     let day: Hexagram
     let hour: Hexagram
+    let yilin: HuangjiYilin
+}
+
+/// 皇极各层卦变的崔氏易林。
+struct HuangjiYilin {
+    let shiToAnnual: YilinLine      // 世卦之年卦
+    let decadeToAnnual: YilinLine   // 旬卦之年卦
+    let annualToMonth: YilinLine    // 年卦之月卦
+    let monthToDay: YilinLine       // 月卦之日卦
+    let dayToHour: YilinLine        // 日卦之时卦
+}
+
+/// 一条易林：卦变名（如"同人之离"）+ 林辞。
+struct YilinLine: Identifiable {
+    let title: String
+    let text: String?
+    var id: String { title }
+}
+
+/// 64 卦简体短名（按卦码 value=0坤…63乾），用于"某卦之某卦"的卦变名。
+private let hexShortNames: [String] = [
+    "坤", "剥", "比", "观", "豫", "晋", "萃", "否", "谦", "艮", "蹇", "渐", "小过", "旅", "咸", "遁",
+    "师", "蒙", "坎", "涣", "解", "未济", "困", "讼", "升", "蛊", "井", "巽", "恒", "鼎", "大过", "姤",
+    "复", "颐", "屯", "益", "震", "噬嗑", "随", "无妄", "明夷", "贲", "既济", "家人", "丰", "离", "革", "同人",
+    "临", "损", "节", "中孚", "归妹", "睽", "兑", "履", "泰", "大畜", "需", "小畜", "大壮", "大有", "夬", "乾",
+]
+func hexShortName(_ value: Int) -> String {
+    (0..<hexShortNames.count).contains(value) ? hexShortNames[value] : "?"
 }
 
 /// 农历日名：初一…初十、十一…十九、二十、廿一…廿九、三十。
@@ -302,7 +377,7 @@ struct MainGuaCard: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            Text(label).font(.subheadline).foregroundStyle(.secondary)
+            Text(label).font(.subheadline).bold()
             if let hex = hexagram {
                 HexagramGlyph(lines: hex.lines)
                 Text(hex.name).font(.headline)
@@ -329,7 +404,7 @@ struct DerivedGuaCard: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            Text(derived.label).font(.subheadline).foregroundStyle(.secondary)
+            Text(derived.label).font(.subheadline).bold()
             HexagramGlyph(lines: derived.lines)
             Text(derived.name).font(.headline)
         }
