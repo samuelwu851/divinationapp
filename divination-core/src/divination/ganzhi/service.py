@@ -76,3 +76,20 @@ def bazi_json(
         bazi(moment, longitude, tz_offset_hours),
         ensure_ascii=False,
     )
+
+
+def solar_to_lunar_json(year: int, month: int, day: int,
+                        hour: int = 0, minute: int = 0) -> str:
+    """公历 → 农历（供农历选择器定位默认值）。"""
+    return json.dumps(
+        repository.solar_to_lunar(year, month, day, hour, minute),
+        ensure_ascii=False,
+    )
+
+
+def lunar_months_json(year: int) -> str:
+    """某农历年的月份结构（供农历选择器加载月份列）。"""
+    return json.dumps(
+        {"year": year, "months": repository.lunar_months(year)},
+        ensure_ascii=False,
+    )

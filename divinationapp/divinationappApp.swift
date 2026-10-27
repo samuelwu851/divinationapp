@@ -17,8 +17,9 @@ struct divinationappApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
         }
+        .defaultSize(width: 1000, height: 820)   // 打开时的大小；切换页面不随内容变化
     }
 
     /// 在 app 启动时初始化嵌入的 Python 解释器，并把我们的包目录加入搜索路径。

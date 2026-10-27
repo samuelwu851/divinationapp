@@ -163,7 +163,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\nSRC=\"${SRCROOT}/divination-core/src/divination\"\nDST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/divination\"\necho \"Copying Python package: $SRC -> $DST\"\nrm -rf \"$DST\"\nmkdir -p \"$(dirname \"$DST\")\"\ncp -R \"$SRC\" \"$DST\"\n# 清掉随包的字节码缓存，避免陈旧 .pyc\nfind \"$DST\" -name '__pycache__' -type d -prune -exec rm -rf {} +\n";
+			shellScript = "set -e\n\n# 1) 拷贝内核包 divination\nSRC=\"${SRCROOT}/divination-core/src/divination\"\nDST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/divination\"\nrm -rf \"$DST\"\nmkdir -p \"$(dirname \"$DST\")\"\ncp -R \"$SRC\" \"$DST\"\nfind \"$DST\" -name '__pycache__' -type d -prune -exec rm -rf {} +\n\n# 2) 拷贝第三方库 lunar_python\nLUNAR_SRC=\"${SRCROOT}/divination-core/vendor/lunar_python\"\nLUNAR_DST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/lunar_python\"\nrm -rf \"$LUNAR_DST\"\ncp -R \"$LUNAR_SRC\" \"$LUNAR_DST\"\nfind \"$LUNAR_DST\" -name '__pycache__' -type d -prune -exec rm -rf {} +\n\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

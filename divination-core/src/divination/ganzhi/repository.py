@@ -5,7 +5,7 @@
 """
 from datetime import datetime
 
-from lunar_python import Solar
+from lunar_python import Lunar, LunarYear, Solar
 
 from divination.ganzhi.model import DiZhi, GanZhi, SiZhu, TianGan
 
@@ -63,3 +63,49 @@ def lunar_info(moment: datetime) -> dict:
         "prev_jieqi": {"name": prev.getName(), "time": prev.getSolar().toYmdHms()},
         "next_jieqi": {"name": nxt.getName(), "time": nxt.getSolar().toYmdHms()},
     }
+
+
+def lunar_to_solar(year: int, month: int, day: int,
+                   hour: int = 0, minute: int = 0) -> datetime:
+    """农历 → 公历 datetime。闰月用负数月份(lunar_python 约定，如闰二月 month=-2)。"""
+    s = Lunar.fromYmdHms(year, month, day, hour, minute, 0).getSolar()
+    return datetime(s.getYear(), s.getMonth(), s.getDay(),
+                    s.getHour(), s.getMinute(), s.getSecond())
+
+
+def lichun_of(solar_year: int) -> datetime:
+    """某公历年的立春时刻(北京时间)。"""
+    lc = _lunar(datetime(solar_year, 6, 1)).getJieQiTable()["立春"]
+    return datetime(lc.getYear(), lc.getMonth(), lc.getDay(),
+                    lc.getHour(), lc.getMinute(), lc.getSecond())
+
+
+def solar_to_lunar(year: int, month: int, day: int,
+                   hour: int = 0, minute: int = 0) -> dict:
+    """公历 → 农历：年 / 月(1-12) / 是否闰月 / 日。"""
+    lunar = _lunar(datetime(year, month, day, hour, minute))
+    m = lunar.getMonth()
+    return {
+        "lunar_year": lunar.getYear(),
+        "lunar_month": abs(m),
+        "is_leap": m < 0,
+        "lunar_day": lunar.getDay(),
+    }
+
+
+_MONTH_LABELS = ("正", "二", "三", "四", "五", "六", "七", "八", "九", "十", "冬", "腊")
+
+
+def lunar_months(year: int) -> list[dict]:
+    """某农历年的月份结构：[{month(1-12), is_leap, days, label}, ...]，闰月自然在列。"""
+    result = []
+    for m in LunarYear.fromYear(year).getMonths():
+        if m.getYear() != year:
+            continue
+        mon = m.getMonth()
+        leap = mon < 0
+        number = abs(mon)
+        label = ("闰" if leap else "") + _MONTH_LABELS[number - 1] + "月"
+        result.append({"month": number, "is_leap": leap,
+                       "days": m.getDayCount(), "label": label})
+    return result

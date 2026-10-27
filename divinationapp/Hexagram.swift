@@ -21,9 +21,9 @@ struct Hexagram: Codable {
     /// 把三个衍生卦整理成统一结构，方便界面遍历。computed 属性不参与解码。
     var derived: [DerivedHexagram] {
         [
-            DerivedHexagram(label: "错卦", name: cuogua,  lines: cuoguaLines,  text: cuoguaText),
-            DerivedHexagram(label: "综卦", name: zonggua, lines: zongguaLines, text: zongguaText),
             DerivedHexagram(label: "互卦", name: hugua,   lines: huguaLines,   text: huguaText),
+            DerivedHexagram(label: "综卦", name: zonggua, lines: zongguaLines, text: zongguaText),
+            DerivedHexagram(label: "错卦", name: cuogua,  lines: cuoguaLines,  text: cuoguaText),
         ]
     }
 }

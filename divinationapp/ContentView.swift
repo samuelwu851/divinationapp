@@ -14,40 +14,11 @@ struct ContentView: View {
 
                 if let org = store.original {
                     if store.showChanged, let chg = store.changed {
-                        // 本卦 | 变卦 并排（紧凑：只有卦名+六爻，点卦名看浮窗）
-                        HStack(alignment: .top, spacing: 48) {
-                            HexagramPanelView(hex: org, compact: true,
-                                              changingLines: store.changingLines,
-                                              showArrow: true,            // 本卦侧画 → 指向变卦
-                                              onFlip: { store.flipOriginal(line: $0) })
-                            HexagramPanelView(hex: chg, compact: true,
-                                              changingLines: store.changingLines,
-                                              showArrow: false,
-                                              onFlip: { store.flipChanged(line: $0) })
-                        }
-
-                        // 崔氏易林：两卦下方
-                        if let yilin = store.yilin {
-                            Divider()
-                            VStack(spacing: 6) {
-                                Text("崔氏易林").font(.headline)
-                                Text(yilin).font(.title3).frame(maxWidth: 600)
-                            }
-                        }
-
-                        // 错 / 综 / 互：在易林下方（本卦、变卦各一组）
-                        HStack(alignment: .top, spacing: 48) {
-                            VStack(spacing: 6) {
-                                Text("本卦").font(.caption).foregroundStyle(.secondary)
-                                DerivedRow(hex: org)
-                            }
-                            VStack(spacing: 6) {
-                                Text("变卦").font(.caption).foregroundStyle(.secondary)
-                                DerivedRow(hex: chg)
-                            }
-                        }
-                        .padding(.top, 8)
-
+                        // 本卦|变卦 + 崔氏易林 + 错综互（抽成 DualGuaView，时间起卦也复用）
+                        DualGuaView(original: org, changed: chg,
+                                    changingLines: store.changingLines, yilin: store.yilin,
+                                    onFlipOriginal: { store.flipOriginal(line: $0) },
+                                    onFlipChanged: { store.flipChanged(line: $0) })
                     } else {
                         // 速查模式：完整面板（内联爻辞/卦辞/错综互）
                         HexagramPanelView(hex: org, onFlip: { store.flipOriginal(line: $0) })
@@ -73,29 +44,31 @@ struct HexagramPanelView: View {
     var compact: Bool = false
     var changingLines: Set<Int> = []     // 动爻下标(0-5)
     var showArrow: Bool = false          // 动爻右侧是否画 →（本卦为 true）
+    var readOnly: Bool = false           // 只读：点爻/点卦名都只弹爻辞浮窗，不变卦
     let onFlip: (Int) -> Void
 
     @State private var showDetail = false   // 紧凑版：卦名点开的浮窗
 
     var body: some View {
-        VStack(spacing: 12) {
-            // 卦名（紧凑版可点开浮窗看卦辞/爻辞）
+        VStack(alignment: .leading, spacing: 12) {
+            // 卦名：限宽到卦图(180)并居中 → 与下方卦图对齐
             Text(hex.name).font(.largeTitle).bold()
+                .frame(width: 180, alignment: .center)
                 .contentShape(Rectangle())
-                .onTapGesture { if compact { showDetail = true } }
+                .onTapGesture { if compact || readOnly { showDetail = true } }
                 .popover(isPresented: $showDetail) { HexagramDetailView(hex: hex) }
 
             // 六爻（点击 = 变爻）
-            VStack(spacing: 4) {
+            VStack(alignment: .leading, spacing: 4) {
                 ForEach((0..<hex.lines.count).reversed(), id: \.self) { index in
                     HStack(spacing: 12) {
                         LineView(isYang: hex.lines[index] == 1)
-                            .onTapGesture { onFlip(index + 1) }
+                            .onTapGesture { if readOnly { showDetail = true } else { onFlip(index + 1) } }
 
                         // 动爻箭头（只有 →，且只在本卦侧）
                         if showArrow {
                             Text(changingLines.contains(index) ? "→" : "")
-                                .font(.title3).foregroundStyle(.orange).frame(width: 22)
+                                .font(.title3).foregroundStyle(.black).frame(width: 22)
                         }
 
                         // 完整版才内联爻辞
@@ -112,9 +85,65 @@ struct HexagramPanelView: View {
             if !compact {
                 Text(hex.hexagramText.lines.count == 7 ? hex.hexagramText.lines[6] : "")
                     .font(.title3).frame(height: 14)
+                    .frame(maxWidth: .infinity, alignment: .center)
                 Text("卦辞：\(hex.hexagramText.still)").font(.title2)
-                DerivedRow(hex: hex).padding(.top, 12)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                DerivedRow(hex: hex)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 12)
             }
+        }
+    }
+}
+
+/// 本卦|变卦 的完整中心区：两面板并排 + 崔氏易林 + 两卦各自的错综互。
+/// 易经速查（可变爻）和时间起卦（只读）共用——readOnly 决定点爻是变卦还是只弹爻辞。
+struct DualGuaView: View {
+    let original: Hexagram
+    let changed: Hexagram
+    let changingLines: Set<Int>
+    let yilin: String?
+    var readOnly: Bool = false
+    var onFlipOriginal: (Int) -> Void = { _ in }
+    var onFlipChanged: (Int) -> Void = { _ in }
+
+    var body: some View {
+        VStack(spacing: 18) {
+            // 本卦 | 变卦 并排
+            HStack(alignment: .top, spacing: 48) {
+                HexagramPanelView(hex: original, compact: true,
+                                  changingLines: changingLines,
+                                  showArrow: true,            // 本卦侧画 → 指向变卦
+                                  readOnly: readOnly,
+                                  onFlip: onFlipOriginal)
+                HexagramPanelView(hex: changed, compact: true,
+                                  changingLines: changingLines,
+                                  showArrow: false,
+                                  readOnly: readOnly,
+                                  onFlip: onFlipChanged)
+            }
+
+            // 崔氏易林：两卦下方
+            if let yilin {
+                Divider()
+                VStack(spacing: 6) {
+                    Text("崔氏易林").font(.headline)
+                    Text(yilin).font(.title3).frame(maxWidth: 600)
+                }
+            }
+
+            // 错 / 综 / 互：在易林下方（本卦、变卦各一组）
+            HStack(alignment: .top, spacing: 48) {
+                VStack(spacing: 6) {
+                    Text("本卦").font(.caption).foregroundStyle(.secondary)
+                    DerivedRow(hex: original)
+                }
+                VStack(spacing: 6) {
+                    Text("变卦").font(.caption).foregroundStyle(.secondary)
+                    DerivedRow(hex: changed)
+                }
+            }
+            .padding(.top, 8)
         }
     }
 }
@@ -138,10 +167,10 @@ struct LineView: View {
     var body: some View {
         HStack(spacing: 12) {
             if isYang {
-                Rectangle().frame(width: 172, height: 26)
+                RoundedRectangle(cornerRadius: 4).frame(width: 172, height: 26)
             } else {
-                Rectangle().frame(width: 80, height: 26)
-                Rectangle().frame(width: 80, height: 26)
+                RoundedRectangle(cornerRadius: 4).frame(width: 80, height: 26)
+                RoundedRectangle(cornerRadius: 4).frame(width: 80, height: 26)
             }
         }
         .frame(width: 180)                 // 固定总宽，阴阳两种对齐
@@ -155,10 +184,10 @@ struct MiniLine: View {
     var body: some View {
         HStack(spacing: 6) {
             if isYang {
-                Rectangle().frame(width: 60, height: 8)
+                RoundedRectangle(cornerRadius: 2).frame(width: 60, height: 8)
             } else {
-                Rectangle().frame(width: 27, height: 8)
-                Rectangle().frame(width: 27, height: 8)
+                RoundedRectangle(cornerRadius: 2).frame(width: 27, height: 8)
+                RoundedRectangle(cornerRadius: 2).frame(width: 27, height: 8)
             }
         }
         .frame(width: 60)
