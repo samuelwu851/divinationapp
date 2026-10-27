@@ -55,6 +55,12 @@ def handle(request_json: str) -> str:
                 req.get("year_start", "lichun"),    # 岁首：daxue / dongzhi / lichun
                 req.get("day_rule", "yuegua"),      # 日卦起法：yuegua(月卦起) / shigua(世卦起)
             )
+        elif cmd == "huangji_calendar":
+            return huangji_service.calendar_month_json(
+                req["year"], req["month"],          # 公历年月
+                req.get("year_start", "lichun"),    # 岁首：daxue / dongzhi / lichun
+                req.get("day_rule", "yuegua"),      # 日卦起法：yuegua / shigua
+            )
         elif cmd == "solar_to_lunar":
             return ganzhi_service.solar_to_lunar_json(
                 req["year"], req["month"], req["day"],

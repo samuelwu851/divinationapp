@@ -65,6 +65,21 @@ def lunar_info(moment: datetime) -> dict:
     }
 
 
+def day_brief(moment: datetime) -> dict:
+    """某日的历法简要（给日历格用）：农历月日中文标签 + 日干支 + 当天节气(无则 None)。"""
+    lunar = _lunar(moment)
+    m = lunar.getMonth()
+    label = ("闰" if m < 0 else "") + lunar.getMonthInChinese() + "月" + lunar.getDayInChinese()
+    return {
+        "lunar_month": abs(m),
+        "lunar_day": lunar.getDay(),
+        "is_leap_month": m < 0,
+        "lunar_label": label,                       # 如 "八月廿一"、"闰六月初三"
+        "day_ganzhi": lunar.getDayInGanZhi(),       # 民用日干支，如 "戊申"
+        "jieqi": lunar.getJieQi() or None,          # 当天恰为节气则给名，否则 None
+    }
+
+
 def lunar_to_solar(year: int, month: int, day: int,
                    hour: int = 0, minute: int = 0) -> datetime:
     """农历 → 公历 datetime。闰月用负数月份(lunar_python 约定，如闰二月 month=-2)。"""

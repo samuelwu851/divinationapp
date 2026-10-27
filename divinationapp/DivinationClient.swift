@@ -63,6 +63,26 @@ struct LunarMonthsResult: Codable {
     let months: [LunarMonth]
 }
 
+/// 皇极日历·一天（对应后端 huangji_calendar 的 days[] 每项）。
+struct CalendarDay: Codable, Identifiable {
+    struct Gua: Codable { let value: Int; let name: String }
+    let solarDay: Int        // solar_day 公历日
+    let weekday: Int         // 0=周日 … 6=周六（对齐 日..六 列）
+    let lunar: String        // 农历中文，如 "八月廿一"
+    let ganzhi: String       // 日干支
+    let jieqi: String?       // 当天节气名或 nil
+    let monthGua: Gua        // month_gua 该天所属皇极月的月卦
+    let dayGua: Gua          // day_gua 日卦
+    var id: Int { solarDay }
+}
+
+/// 皇极日历·一整月（对应后端 huangji_calendar）。
+struct CalendarMonth: Codable {
+    let solarYear: Int       // solar_year
+    let solarMonth: Int      // solar_month
+    let days: [CalendarDay]
+}
+
 /// 无状态小帮手：包一下 engine + JSON 解码。不持有状态、不是 store。
 /// 时间起卦用它一次性取数据，结果存进视图自己的 @State。
 struct DivinationClient {
@@ -92,6 +112,12 @@ struct DivinationClient {
                  yearStart: String, dayRule: String) -> HuangjiResult? {
         decode(send(["cmd": "huangji_full", "year": year, "month": month, "day": day,
                      "hour": hour, "minute": minute, "is_lunar": isLunar, "is_leap": isLeap,
+                     "year_start": yearStart, "day_rule": dayRule]))
+    }
+
+    /// 皇极日历：给公历年月，返回整月每天的 干支/节气/日卦/月卦。
+    func huangjiCalendar(year: Int, month: Int, yearStart: String, dayRule: String) -> CalendarMonth? {
+        decode(send(["cmd": "huangji_calendar", "year": year, "month": month,
                      "year_start": yearStart, "day_rule": dayRule]))
     }
 

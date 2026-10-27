@@ -21,6 +21,13 @@ struct HuangjiView: View {
     @State private var lunarMonthIndex: Int = 0     // 下标(闰月会让月号重复，所以绑下标)
     @State private var lunarDay: Int = 1
 
+    // 日历模式
+    @State private var calendarMode = false
+    @State private var calYear: Int
+    @State private var calMonth: Int
+    @State private var calendar: CalendarMonth?
+    @State private var selectedDay: Int?
+
     @State private var result: HuangjiPaipan?
     @State private var errorMessage: String?
 
@@ -34,6 +41,14 @@ struct HuangjiView: View {
         _hour       = State(initialValue: c.hour   ?? 0)
         _minute     = State(initialValue: c.minute ?? 0)
         _lunarYear  = State(initialValue: c.year   ?? 2026)
+        _calYear    = State(initialValue: c.year   ?? 2026)
+        _calMonth   = State(initialValue: c.month  ?? 1)
+    }
+
+    /// 当前选中的那一天（日历数据里）。
+    private var selectedCalDay: CalendarDay? {
+        guard let d = selectedDay, let cal = calendar else { return nil }
+        return cal.days.first { $0.solarDay == d }
     }
 
     /// 公历日范围（按选中的年月）。
@@ -54,15 +69,17 @@ struct HuangjiView: View {
             VStack(alignment: .leading, spacing: 24) {
                 Text("皇极经世").font(.largeTitle).bold()
 
-                // 公历 / 农历 切换
-                Picker("", selection: $isLunar) {
-                    Text("公历日期").tag(false)
-                    Text("农历日期").tag(true)
+                // 公历 / 农历 切换（日历模式只用公历，故隐藏）
+                if !calendarMode {
+                    Picker("", selection: $isLunar) {
+                        Text("公历日期").tag(false)
+                        Text("农历日期").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 300)
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 300)
 
-                // 岁首 + 日卦起法（下拉菜单）
+                // 岁首 + 日卦起法（下拉菜单）+ 日历模式开关
                 HStack(spacing: 20) {
                     Picker("岁首", selection: $yearStart) {
                         Text("大雪").tag("daxue")
@@ -73,39 +90,47 @@ struct HuangjiView: View {
                         Text("以月卦起").tag("yuegua")
                         Text("以世卦起").tag("shigua")
                     }
+                    .pickerStyle(.menu)
+                    Toggle("日历模式", isOn: $calendarMode)
+                        .toggleStyle(.switch)
+                        .fixedSize()
                 }
                 .pickerStyle(.menu)
                 .fixedSize()
 
-                // 滚轮（上下各露一格，visibleRows: 3）+ 计算按钮（在滚轮右边）
-                HStack(alignment: .center, spacing: 24) {
-                    HStack(spacing: 10) {
-                        if isLunar {
-                            WheelPicker(title: "年", values: Array(1...3000), selection: $lunarYear, visibleRows: 3).frame(width: 96)
-                            WheelPicker(title: "月",
-                                        values: Array(0..<max(lunarMonths.count, 1)),
-                                        format: { lunarMonths.indices.contains($0) ? lunarMonths[$0].label : "—" },
-                                        selection: $lunarMonthIndex, visibleRows: 3).frame(width: 88)
-                            WheelPicker(title: "日",
-                                        values: Array(1...currentLunarMonthDays),
-                                        format: { lunarDayName($0) },
-                                        selection: $lunarDay, visibleRows: 3).frame(width: 88)
-                        } else {
-                            WheelPicker(title: "年", values: Array(1...3000), selection: $solarYear, visibleRows: 3).frame(width: 96)
-                            WheelPicker(title: "月", values: Array(1...12),
-                                        format: { "\($0)月" }, selection: $solarMonth, visibleRows: 3).frame(width: 72)
-                            WheelPicker(title: "日", values: solarDayRange,
-                                        format: { "\($0)日" }, selection: $solarDay, visibleRows: 3).frame(width: 72)
+                if calendarMode {
+                    calendarSection
+                } else {
+                    // 滚轮（上下各露一格，visibleRows: 3）+ 计算按钮（在滚轮右边）
+                    HStack(alignment: .center, spacing: 24) {
+                        HStack(spacing: 10) {
+                            if isLunar {
+                                WheelPicker(title: "年", values: Array(1...3000), selection: $lunarYear, visibleRows: 3).frame(width: 96)
+                                WheelPicker(title: "月",
+                                            values: Array(0..<max(lunarMonths.count, 1)),
+                                            format: { lunarMonths.indices.contains($0) ? lunarMonths[$0].label : "—" },
+                                            selection: $lunarMonthIndex, visibleRows: 3).frame(width: 88)
+                                WheelPicker(title: "日",
+                                            values: Array(1...currentLunarMonthDays),
+                                            format: { lunarDayName($0) },
+                                            selection: $lunarDay, visibleRows: 3).frame(width: 88)
+                            } else {
+                                WheelPicker(title: "年", values: Array(1...3000), selection: $solarYear, visibleRows: 3).frame(width: 96)
+                                WheelPicker(title: "月", values: Array(1...12),
+                                            format: { "\($0)月" }, selection: $solarMonth, visibleRows: 3).frame(width: 72)
+                                WheelPicker(title: "日", values: solarDayRange,
+                                            format: { "\($0)日" }, selection: $solarDay, visibleRows: 3).frame(width: 72)
+                            }
+                            WheelPicker(title: "时", values: Array(0...23), selection: $hour, visibleRows: 3).frame(width: 72)
+                            WheelPicker(title: "分", values: Array(0...59), selection: $minute, visibleRows: 3).frame(width: 72)
                         }
-                        WheelPicker(title: "时", values: Array(0...23), selection: $hour, visibleRows: 3).frame(width: 72)
-                        WheelPicker(title: "分", values: Array(0...59), selection: $minute, visibleRows: 3).frame(width: 72)
-                    }
 
-                    Button("计算") { paipan() }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
+                        Button("计算") { paipan() }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                    }
+                    .frame(maxWidth: .infinity)          // 滚轮+按钮整排居中
                 }
-                .frame(maxWidth: .infinity)          // 滚轮+按钮整排居中
 
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red).font(.footnote)
@@ -122,7 +147,83 @@ struct HuangjiView: View {
             .onChange(of: lunarMonthIndex) { _, _ in if lunarDay > currentLunarMonthDays { lunarDay = currentLunarMonthDays } }
             .onChange(of: solarMonth) { _, _ in clampSolarDay() }
             .onChange(of: solarYear) { _, _ in clampSolarDay() }
+            .onChange(of: calendarMode) { _, now in if now { loadCalendar() } }
+            .onChange(of: calYear) { _, _ in if calendarMode { loadCalendar() } }
+            .onChange(of: calMonth) { _, _ in if calendarMode { loadCalendar() } }
+            .onChange(of: yearStart) { _, _ in if calendarMode { loadCalendar() } }
+            .onChange(of: dayRule) { _, _ in if calendarMode { loadCalendar() } }
         }
+    }
+
+    // MARK: - 日历模式
+
+    /// 日历区：左上角大号日期 + 右上角月卦 + 月历头部 + 日历网格。
+    @ViewBuilder
+    private var calendarSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // 左上角：选中日期（大）；右上角：该天月卦
+            HStack(alignment: .top) {
+                if let sd = selectedCalDay {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(String(calYear)) 年 \(calMonth) 月 \(sd.solarDay) 日")
+                            .font(.largeTitle).bold()
+                        Text("\(sd.lunar) · \(sd.ganzhi)日")
+                            .font(.title3).foregroundStyle(.secondary)
+                        if let jq = sd.jieqi, !jq.isEmpty {
+                            Text(jq).font(.title3).foregroundStyle(.orange)
+                        }
+                    }
+                }
+                Spacer()
+                if let sd = selectedCalDay {
+                    VStack(spacing: 6) {
+                        Text("月卦").font(.subheadline).bold()
+                        HexagramGlyph(lines: hexLines(sd.monthGua.value), width: 84, lineHeight: 11)
+                        Text(sd.monthGua.name).font(.headline)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            CalendarHeaderView(year: $calYear, month: $calMonth) { goToToday() }
+            CalendarGridView(month: calendar, selected: selectedDay) { selectCalendarDay($0) }
+        }
+    }
+
+    /// 拉取当前年月的日历；尽量保留已选的那一天，否则选今天/1号。
+    private func loadCalendar() {
+        guard let cal = client.huangjiCalendar(year: calYear, month: calMonth,
+                                               yearStart: yearStart, dayRule: dayRule) else {
+            calendar = nil; errorMessage = "日历加载失败"; return
+        }
+        calendar = cal
+        errorMessage = nil
+        let maxDay = cal.days.count
+        let keep = selectedDay.flatMap { (1...maxDay).contains($0) ? $0 : nil }
+        if let keep {
+            selectCalendarDay(keep)
+        } else {
+            let t = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+            let today = (t.year == calYear && t.month == calMonth) ? (t.day ?? 1) : 1
+            selectCalendarDay(today)
+        }
+    }
+
+    /// 选中某一天 → 以正午排盘（和后端日历取正午一致）。
+    private func selectCalendarDay(_ d: Int) {
+        selectedDay = d
+        result = makePaipan(year: calYear, month: calMonth, day: d,
+                            hour: 12, minute: 0, isLunar: false, isLeap: false)
+        if result == nil { errorMessage = "排盘失败：引擎无响应" }
+    }
+
+    /// today 按钮：跳回今天并选中。
+    private func goToToday() {
+        let t = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        selectedDay = nil
+        calYear = t.year ?? calYear
+        calMonth = t.month ?? calMonth
+        loadCalendar()
     }
 
     // MARK: - 农历加载
@@ -164,10 +265,22 @@ struct HuangjiView: View {
             y = solarYear; m = solarMonth; d = solarDay; lun = false; leap = false
         }
 
-        guard let h = client.huangji(year: y, month: m, day: d, hour: hour, minute: minute,
+        guard let p = makePaipan(year: y, month: m, day: d, hour: hour, minute: minute,
+                                 isLunar: lun, isLeap: leap) else {
+            errorMessage = "计算失败：引擎无响应"; return
+        }
+        result = p; errorMessage = nil
+    }
+
+    /// 核心排盘：给定日期/时刻 → 完整皇极排盘（含各层卦 lookup + 崔氏易林 + 四柱）。
+    /// 普通"计算"和日历选格共用。取不到数据返回 nil。
+    private func makePaipan(year y: Int, month m: Int, day d: Int,
+                            hour hh: Int, minute mi: Int,
+                            isLunar lun: Bool, isLeap leap: Bool) -> HuangjiPaipan? {
+        guard let h = client.huangji(year: y, month: m, day: d, hour: hh, minute: mi,
                                      isLunar: lun, isLeap: leap,
                                      yearStart: yearStart, dayRule: dayRule) else {
-            errorMessage = "计算失败：引擎无响应"; return
+            return nil
         }
         guard let hui = client.lookup(h.hui.value),
               let yun = client.lookup(h.yun.value),
@@ -177,7 +290,7 @@ struct HuangjiView: View {
               let month = client.lookup(h.month.value),
               let day = client.lookup(h.day.value),
               let hour = client.lookup(h.hour.value) else {
-            errorMessage = "计算失败：取卦数据出错"; return
+            return nil
         }
         // 崔氏易林：各层卦变的林辞；标题用短名"某卦之某卦"（如 同人之离）
         func yl(_ from: Int, _ to: Int) -> YilinLine {
@@ -192,7 +305,7 @@ struct HuangjiView: View {
             dayToHour:      yl(h.day.value,    h.hour.value)
         )
 
-        result = HuangjiPaipan(
+        return HuangjiPaipan(
             ganzhi: h.ganzhi,
             huiIndex: h.hui.index, yunIndex: h.yun.index, shiIndex: h.shi.index,
             inputSolar: h.inputSolar,
@@ -201,7 +314,6 @@ struct HuangjiView: View {
             month: month, day: day, hour: hour,
             yilin: yilin
         )
-        errorMessage = nil
     }
 
     /// 从 "YYYY-MM-DD HH:MM" 解析出公历并取四柱。
@@ -312,6 +424,12 @@ func hexShortName(_ value: Int) -> String {
     (0..<hexShortNames.count).contains(value) ? hexShortNames[value] : "?"
 }
 
+/// 卦码(0坤…63乾) → 六爻 [初…上]，1阳0阴。bit5=初爻、bit0=上爻。
+/// 用于只有 value 没有完整 Hexagram 时画卦象图（如日历的月卦）。
+func hexLines(_ value: Int) -> [Int] {
+    (0..<6).map { (value >> (5 - $0)) & 1 }
+}
+
 /// 农历日名：初一…初十、十一…十九、二十、廿一…廿九、三十。
 func lunarDayName(_ d: Int) -> String {
     let units = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
@@ -394,6 +512,134 @@ struct MainGuaCard: View {
                 HexagramDetailView(hex: hex).presentationCompactAdaptation(.popover)
             }
         }
+    }
+}
+
+// MARK: - 皇极日历
+
+/// 月历头部：‹ 年 / 月 › + today。点年份/月份弹滚轮浮窗选择。
+struct CalendarHeaderView: View {
+    @Binding var year: Int
+    @Binding var month: Int
+    var onToday: () -> Void
+
+    @State private var showYear = false
+    @State private var showMonth = false
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Button { shift(-1) } label: { Image(systemName: "chevron.left") }
+                .buttonStyle(.plain)
+
+            Button { showYear = true } label: {
+                Text(verbatim: String(year)).font(.title3).bold().monospacedDigit()
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showYear) {
+                WheelPicker(title: "年", values: Array(1...3000), selection: $year, visibleRows: 5)
+                    .frame(width: 110).padding()
+                    .presentationCompactAdaptation(.popover)
+            }
+
+            Text("/").font(.title3).foregroundStyle(.secondary)
+
+            Button { showMonth = true } label: {
+                Text(String(format: "%02d", month)).font(.title3).bold().monospacedDigit()
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showMonth) {
+                WheelPicker(title: "月", values: Array(1...12),
+                            format: { "\($0)月" }, selection: $month, visibleRows: 5)
+                    .frame(width: 90).padding()
+                    .presentationCompactAdaptation(.popover)
+            }
+
+            Button { shift(1) } label: { Image(systemName: "chevron.right") }
+                .buttonStyle(.plain)
+
+            Spacer()
+
+            Button("today") { onToday() }.buttonStyle(.bordered)
+        }
+    }
+
+    /// 前/后一个月，带年份进位。
+    private func shift(_ delta: Int) {
+        var m = month + delta
+        var y = year
+        if m < 1 { m = 12; y -= 1 }
+        if m > 12 { m = 1; y += 1 }
+        month = m; year = y
+    }
+}
+
+/// 日历网格：7 列（日~六），首日按星期留空格。每格为 CalendarCellView。
+struct CalendarGridView: View {
+    let month: CalendarMonth?
+    let selected: Int?
+    var onSelect: (Int) -> Void
+
+    private let cols = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
+    private let weekdays = ["日", "一", "二", "三", "四", "五", "六"]
+
+    var body: some View {
+        VStack(spacing: 6) {
+            LazyVGrid(columns: cols, spacing: 4) {
+                ForEach(weekdays, id: \.self) { w in
+                    Text(w).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if let month {
+                LazyVGrid(columns: cols, spacing: 4) {
+                    ForEach(0..<leadingBlanks(month), id: \.self) { _ in
+                        Color.clear.frame(height: 62)
+                    }
+                    ForEach(month.days) { day in
+                        CalendarCellView(day: day, isSelected: day.solarDay == selected)
+                            .onTapGesture { onSelect(day.solarDay) }
+                    }
+                }
+            } else {
+                ProgressView().frame(maxWidth: .infinity).padding()
+            }
+        }
+    }
+
+    /// 本月 1 号前要留几个空格（= 1 号的星期，0=周日）。
+    private func leadingBlanks(_ m: CalendarMonth) -> Int {
+        m.days.first?.weekday ?? 0
+    }
+}
+
+/// 日历一格：公历日 + 节气 + 日干支 + 日卦名；选中时高亮描边。
+struct CalendarCellView: View {
+    let day: CalendarDay
+    let isSelected: Bool
+
+    var body: some View {
+        VStack(spacing: 1) {
+            HStack(spacing: 3) {
+                Text("\(day.solarDay)").font(.callout).bold()
+                if let jq = day.jieqi, !jq.isEmpty {
+                    Text(jq).font(.caption2).foregroundStyle(.orange).lineLimit(1)
+                }
+            }
+            Text(day.ganzhi).font(.caption2).foregroundStyle(.secondary)
+            Text(day.dayGua.name).font(.subheadline)
+                .lineLimit(1).minimumScaleFactor(0.6)
+        }
+        .frame(maxWidth: .infinity, minHeight: 62)
+        .padding(.vertical, 4).padding(.horizontal, 2)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(isSelected ? Color.accentColor : Color.gray.opacity(0.15),
+                        lineWidth: isSelected ? 1.6 : 0.6)
+        )
+        .contentShape(Rectangle())
     }
 }
 

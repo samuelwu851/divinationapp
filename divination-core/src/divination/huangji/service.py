@@ -5,6 +5,7 @@
 每个卦只回 value + 卦名；要卦辞/爻辞/错综互，平台层拿 value 调 iching 的 lookup。
 返回纯 JSON 可序列化的数据，不把内部类型漏给平台层。
 """
+import calendar as _calendar
 import json
 from dataclasses import replace
 from datetime import datetime
@@ -195,5 +196,53 @@ def paipan_full_from_date_json(
     """平台层边界：前端日期进，完整链 JSON 串出。"""
     return json.dumps(
         paipan_full_from_date(year, month, day, hour, minute, is_lunar, is_leap, year_start, day_rule),
+        ensure_ascii=False,
+    )
+
+
+# ------------------------------------------------------------------ 整月日历（日卦/月卦网格）
+def calendar_month(
+    solar_year: int, solar_month: int,
+    year_start: str = DEFAULT_YEAR_START, day_rule: str = DEFAULT_DAY_RULE,
+) -> dict:
+    """给一个【公历】年月，返回这一整月每天的 公历/农历/日干支/节气/日卦/月卦。
+
+    供前端画皇极经世日历：每格显示公历日、农历、日卦；点某天时用该天的 month_gua 显示月卦。
+    受岁首(大雪/冬至/立春)与日卦起法(月卦起/世卦起)影响——同一公历月里跨了节/中气，
+    不同的天可能属不同皇极月，故 month_gua 逐日给出。
+    """
+    cfg = build_config(year_start, day_rule)
+    n_days = _calendar.monthrange(solar_year, solar_month)[1]
+    days = []
+    for d in range(1, n_days + 1):
+        dt = datetime(solar_year, solar_month, d, 12, 0)   # 取正午，避开日界歧义
+        f = subyear.full(dt, cfg)
+        brief = ganzhi_repo.day_brief(dt)
+        days.append({
+            "solar_day": d,
+            "weekday": (dt.weekday() + 1) % 7,             # 0=周日 … 6=周六（对齐日历 SUN..SAT 列）
+            "lunar": brief["lunar_label"],                 # 农历中文，如 "八月廿一"
+            "lunar_month": brief["lunar_month"], "lunar_day": brief["lunar_day"],
+            "is_leap_month": brief["is_leap_month"],
+            "ganzhi": brief["day_ganzhi"],                 # 日干支
+            "jieqi": brief["jieqi"],                       # 当天节气名或 None
+            "hj_year": f["hj_year"], "month_branch": f["month_branch"],
+            "month_gua": _pack_code(f["yue_gua_code"]),    # 该天所属皇极月的月卦
+            "day_gua": _pack_code(f["ri_gua_code"]),       # 日卦
+        })
+    return {
+        "solar_year": solar_year, "solar_month": solar_month,
+        "year_start": year_start, "day_rule": day_rule,
+        "days": days,
+    }
+
+
+def calendar_month_json(
+    solar_year: int, solar_month: int,
+    year_start: str = DEFAULT_YEAR_START, day_rule: str = DEFAULT_DAY_RULE,
+) -> str:
+    """平台层边界：公历年月进，整月日历 JSON 串出。"""
+    return json.dumps(
+        calendar_month(solar_year, solar_month, year_start, day_rule),
         ensure_ascii=False,
     )
